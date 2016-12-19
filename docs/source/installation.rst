@@ -36,11 +36,11 @@ Add the activity urls to your urlconf
 
 .. code-block:: python
 
-    urlpatterns = patterns('',
+    urlpatterns = [
         ...
         ('^activity/', include('actstream.urls')),
         ...
-    )
+    ]
 
 The activity urls are not required for basic usage but provide activity :ref:`feeds` and handle following, unfollowing and querying of followers.
 
@@ -93,7 +93,7 @@ Python
 Django
 ******
 
-* **Django**: 1.3, 1.4, 1.5, 1.6, 1.7, 1.8 and 1.9
+* **Django**: 1.10
 
 Databases
 *********
