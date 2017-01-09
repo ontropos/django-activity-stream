@@ -200,10 +200,16 @@ class OntroposActivityStream(object):
         Returns a formatted dictionary for an individual item based on the action and item_type.
         """
         obj = getattr(action, item_type)
-        return {
-            'objectType': ContentType.objects.get_for_model(obj).name,
-            'objectName': text_type(obj)
-        }
+
+        object_info = {}
+        object_info['objectType'] = ContentType.objects.get_for_model(obj).name
+
+        if ContentType.objects.get_for_model(obj).name == 'data file':
+            object_info['objectName'] = obj.filename
+        else:
+            object_info['objectName'] = text_type(obj)
+
+        return object_info
 
     def format_actor(self, action):
         """
