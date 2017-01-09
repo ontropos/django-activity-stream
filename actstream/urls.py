@@ -6,10 +6,9 @@ from actstream import feeds, views
 urlpatterns = [
     # User feeds
     url(r'^feed/$', feeds.UserActivityFeed(), name='actstream_feed'),
-    url(r'^feed/atom/$', feeds.AtomUserActivityFeed(),
-        name='actstream_feed_atom'),
-    url(r'^feed/json/$', feeds.UserJSONActivityFeed.as_view(),
-        name='actstream_feed_json'),
+    url(r'^feed/atom/$', feeds.AtomUserActivityFeed(), name='actstream_feed_atom'),
+    url(r'^feed/json/$', feeds.UserJSONActivityFeed.as_view(), name='actstream_feed_json'),
+    url(r'^ontropos/$', feeds.UserJSONActivityOntropos.as_view(), name='actstream_ontropos'),
 
     # Model feeds
     url(r'^feed/(?P<content_type_id>[^/]+)/$',
