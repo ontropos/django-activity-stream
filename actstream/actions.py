@@ -36,8 +36,10 @@ def follow(user, obj, send_action=True, actor_only=True, **kwargs):
         user=user, object_id=obj.pk,
         content_type=ContentType.objects.get_for_model(obj),
         actor_only=actor_only)
-    if send_action and created:
-        action.send(user, verb=_('started following'), target=obj, **kwargs)
+    # PATCH (ontropos version)
+    # don't save this action in bbdd (ontropos version) in order to it doesn't show into user activity
+    # if send_action and created:
+    #     action.send(user, verb=_('started following'), target=obj, **kwargs)
     return instance
 
 
@@ -57,8 +59,10 @@ def unfollow(user, obj, send_action=False):
         user=user, object_id=obj.pk,
         content_type=ContentType.objects.get_for_model(obj)
     ).delete()
-    if send_action:
-        action.send(user, verb=_('stopped following'), target=obj)
+    # PATCH (ontropos version)
+    # don't save this action in bbdd in order to it doesn't show into user activity
+    # if send_action:
+    #     action.send(user, verb=_('stopped following'), target=obj)
 
 
 def is_following(user, obj):
