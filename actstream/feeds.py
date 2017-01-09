@@ -116,6 +116,114 @@ class AbstractActivityStream(object):
         return self.format_item(action, 'action_object')
 
 
+class OntroposActivityStream(object):
+    """
+    Abstract base class for all stream rendering.
+    Supports hooks for fetching streams and formatting actions.
+    """
+    def get_stream(self, *args, **kwargs):
+        """
+        Returns a stream method to use.
+        """
+        raise NotImplementedError
+
+    def get_object(self, *args, **kwargs):
+        """
+        Returns the object (eg user or actor) that the stream is for.
+        """
+        raise NotImplementedError
+
+    def items(self, *args, **kwargs):
+        """
+        Returns a queryset of Actions to use based on the stream method and object.
+        """
+        return self.get_stream()(self.get_object(*args, **kwargs))
+
+    def get_uri(self, action, obj=None, date=None):
+        """
+        Returns an RFC3987 IRI ID for the given object, action and date.
+        """
+        if date is None:
+            date = action.timestamp
+        date = datetime_safe.new_datetime(date).strftime('%Y-%m-%d')
+        return 'tag:%s,%s:%s' % (Site.objects.get_current().domain, date,
+                                 self.get_url(action, obj, False))
+
+    def get_url(self, action, obj=None, domain=True):
+        """
+        Returns an RFC3987 IRI for a HTML representation of the given object, action.
+        If domain is true, the current site's domain will be added.
+        """
+        if not obj:
+            url = reverse('actstream_detail', None, (action.pk,))
+        elif hasattr(obj, 'get_absolute_url'):
+            url = obj.get_absolute_url()
+        else:
+            ctype = ContentType.objects.get_for_model(obj)
+            url = reverse('actstream_actor', None, (ctype.pk, obj.pk))
+        if domain:
+            return add_domain(Site.objects.get_current().domain, url)
+        return url
+
+    def format(self, action):
+        """
+        Returns a formatted dictionary for the given action.
+        """
+        item = {
+            'verb': action.verb,
+            'published': rfc3339_date(action.timestamp),
+            'actor': self.format_actor(action),
+        }
+        if action.description:
+            item['description'] = action.description
+        if action.action_object:
+            objectInfo=self.format_action_object(action)
+            item['object_type'] = objectInfo['objectType']
+            item['object_name'] = objectInfo['objectName']
+
+        return item
+
+    def format_item(self, action, item_type='actor'):
+        """
+        Returns a formatted dictionary for an individual item based on the action and item_type.
+        """
+        obj = getattr(action, item_type)
+        return {
+            'id': self.get_uri(action, obj),
+            'url': self.get_url(action, obj),
+            'objectType': ContentType.objects.get_for_model(obj).name,
+            'displayName': text_type(obj)
+        }
+
+    def format_object(self, action, item_type='action_object'):
+        """
+        Returns a formatted dictionary for an individual item based on the action and item_type.
+        """
+        obj = getattr(action, item_type)
+        return {
+            'objectType': ContentType.objects.get_for_model(obj).name,
+            'objectName': text_type(obj)
+        }
+
+    def format_actor(self, action):
+        """
+        Returns the actor name string
+        """
+        obj = getattr(action, 'actor')
+        return text_type(obj)
+
+    def format_target(self, action):
+        """
+        Returns a formatted dictionary for the target of the action.
+        """
+        return self.format_item(action, 'target')
+
+    def format_action_object(self, action):
+        """
+        Returns a formatted dictionary for the action object of the action.
+        """
+        return self.format_object(action)
+
 class ActivityStreamsAtomFeed(Atom1Feed):
     """
     Feed rendering class for the v1.0 Atom Activity Stream Spec
@@ -206,6 +314,22 @@ class ActivityStreamsBaseFeed(AbstractActivityStream, Feed):
 
 
 class JSONActivityFeed(AbstractActivityStream, View):
+    """
+    Feed that generates feeds compatible with the v1.0 JSON Activity Stream spec
+    """
+    def dispatch(self, request, *args, **kwargs):
+        return HttpResponse(self.serialize(request, *args, **kwargs),
+                            content_type='application/json')
+
+    def serialize(self, request, *args, **kwargs):
+        items = self.items(request, *args, **kwargs)
+        return json.dumps({
+            'totalItems': len(items),
+            'items': [self.format(action) for action in items]
+        }, indent=4 if 'pretty' in request.GET or 'pretty' in request.POST else None)
+
+
+class JSONActivityOntropos(OntroposActivityStream, View):
     """
     Feed that generates feeds compatible with the v1.0 JSON Activity Stream spec
     """
@@ -333,6 +457,13 @@ class AtomObjectActivityFeed(ObjectActivityFeed):
 
 
 class UserJSONActivityFeed(UserActivityMixin, JSONActivityFeed):
+    """
+    JSON feed of Activity for a given user (where actions are those that the given user follows).
+    """
+    pass
+
+
+class UserJSONActivityOntropos(UserActivityMixin, JSONActivityOntropos):
     """
     JSON feed of Activity for a given user (where actions are those that the given user follows).
     """
